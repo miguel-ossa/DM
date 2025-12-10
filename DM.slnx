@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="DM.csproj" />
+  <Project Path="DM.Domain/DM.Domain.csproj" />
+  <Project Path="DM.Infrastructure.Tests/DM.Infrastructure.Tests.csproj" />
+  <Project Path="DM.Infrastructure/DM.Infrastructure.csproj" />
+</Solution>

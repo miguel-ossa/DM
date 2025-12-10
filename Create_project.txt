@@ -1,0 +1,29 @@
+dotnet tool install --global dotnet-ef
+
+dotnet new maui -n DM
+cd DM
+dotnet new sln -n DM
+dotnet sln add DM.csproj
+
+dotnet new classlib -n DM.Domain
+dotnet new classlib -n DM.Infrastructure
+
+dotnet sln add DM.Domain/DM.Domain.csproj
+dotnet sln add DM.Infrastructure/DM.Infrastructure.csproj
+
+# Infraestructura necesita el dominio
+dotnet add DM.Infrastructure/DM.Infrastructure.csproj reference DM.Domain/DM.Domain.csproj
+
+# La app MAUI necesita dominio e infraestructura
+dotnet add DM.csproj reference DM.Domain/DM.Domain.csproj
+dotnet add DM.csproj reference DM.Infrastructure/DM.Infrastructure.csproj
+
+dotnet add DM.Infrastructure/DM.Infrastructure.csproj package Microsoft.EntityFrameworkCore
+dotnet add DM.Infrastructure/DM.Infrastructure.csproj package Microsoft.EntityFrameworkCore.Design
+dotnet add DM.Infrastructure/DM.Infrastructure.csproj package Pomelo.EntityFrameworkCore.MySql 
+
+dotnet add DM.csproj package Microsoft.EntityFrameworkCore
+dotnet add DM.csproj package Pomelo.EntityFrameworkCore.MySql
+
+
+

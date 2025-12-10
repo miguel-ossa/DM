@@ -1,0 +1,71 @@
+## === .NET / Visual Studio / VS Code ===
+
+# Builds
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+**/bin/
+**/obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Logs
+*.log
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+*.nuspec
+.nuget/
+
+# Rider / JetBrains
+.idea/
+*.suo
+*.userprefs
+
+# OS
+.DS_Store
+Thumbs.db
+
+## === .NET MAUI / Mobile specific ===
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+*.keystore
+*.jks
+**/android/bin/
+**/android/obj/
+
+# iOS / macOS
+**/iOS/bin/
+**/iOS/obj/
+**/MacCatalyst/bin/
+**/MacCatalyst/obj/
+**/Mac/bin/
+**/Mac/obj/
+
+# Platforms (MAUI)
+**/Platforms/Android/bin/
+**/Platforms/Android/obj/
+**/Platforms/iOS/bin/
+**/Platforms/iOS/obj/
+**/Platforms/MacCatalyst/bin/
+**/Platforms/MacCatalyst/obj/
+**/Platforms/Windows/bin/
+**/Platforms/Windows/obj/
+
+# Tools / Local
+*.sqlite-journal
+*.dbmdl
+*.tmp
+*.temp
