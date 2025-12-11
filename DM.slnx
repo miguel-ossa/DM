@@ -3,4 +3,5 @@
   <Project Path="DM.Domain/DM.Domain.csproj" />
   <Project Path="DM.Infrastructure.Tests/DM.Infrastructure.Tests.csproj" />
   <Project Path="DM.Infrastructure/DM.Infrastructure.csproj" />
+  <Project Path="DM.Seed/DM.Seed.csproj" />
 </Solution>
