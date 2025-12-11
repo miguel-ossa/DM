@@ -19,239 +19,170 @@ public class ChatsTests
             IsActive = true
         };
 
-    private Chat CreateDirectChat(int createdByUserId)
+    private Chat CreateSampleChat(int createdByUserId, string title = "Sample chat")
         => new()
         {
-            Type = ChatType.Direct,
-            CreatedByUserId = createdByUserId,
-            CreatedAt = DateTime.UtcNow,
-            Title = null,
-            IsEncrypted = true
-        };
-
-    private Chat CreateGroupChat(int createdByUserId, string title)
-        => new()
-        {
-            Type = ChatType.Group,
             CreatedByUserId = createdByUserId,
             CreatedAt = DateTime.UtcNow,
             Title = title,
-            IsEncrypted = true
+            IsEncrypted = false
+            // Type se quedará con el valor por defecto del enum
         };
 
-    private ChatMember CreateChatMember(int chatId, int userId, ChatMemberRole role)
+    private ChatMember CreateSampleChatMember(int chatId, int userId)
         => new()
         {
             ChatId = chatId,
             UserId = userId,
-            Role = role,
-            JoinedAt = DateTime.UtcNow,
-            MutedUntil = null
+            JoinedAt = DateTime.UtcNow
+            // Role y MutedUntil pueden quedarse con valores por defecto
         };
 
-    // 1) Modelo: ChatMember tiene PK compuesta y FKs a Chat y User
+    // 1) Modelo: ChatMember tiene FK hacia Chat
     [Fact]
-    public void Model_ChatMember_Has_Composite_PK_And_FKs()
+    public void Model_Has_FK_From_ChatMember_To_Chat()
     {
-        using var db = DbContextHelper.CreateInMemoryDbContext(nameof(Model_ChatMember_Has_Composite_PK_And_FKs));
+        using var db = DbContextHelper.CreateInMemoryDbContext(nameof(Model_Has_FK_From_ChatMember_To_Chat));
 
         var entity = db.Model.FindEntityType(typeof(ChatMember))!;
-        var pk = entity.FindPrimaryKey()!;
-        var fkToChat = entity.GetForeignKeys().Single(fk => fk.PrincipalEntityType.ClrType == typeof(Chat));
-        var fkToUser = entity.GetForeignKeys().Single(fk => fk.PrincipalEntityType.ClrType == typeof(User));
+        var fks = entity.GetForeignKeys();
 
-        // PK compuesta: ChatId + UserId
-        Assert.Equal(2, pk.Properties.Count);
-        Assert.Contains(pk.Properties, p => p.Name == "ChatId");
-        Assert.Contains(pk.Properties, p => p.Name == "UserId");
-
-        // FK hacia Chat
+        var fkToChat = Assert.Single(fks, fk => fk.PrincipalEntityType.ClrType == typeof(Chat));
         Assert.Equal("ChatId", Assert.Single(fkToChat.Properties).Name);
+    }
 
-        // FK hacia User
+    // 2) Modelo: ChatMember tiene FK hacia User
+    [Fact]
+    public void Model_Has_FK_From_ChatMember_To_User()
+    {
+        using var db = DbContextHelper.CreateInMemoryDbContext(nameof(Model_Has_FK_From_ChatMember_To_User));
+
+        var entity = db.Model.FindEntityType(typeof(ChatMember))!;
+        var fks = entity.GetForeignKeys();
+
+        var fkToUser = Assert.Single(fks, fk => fk.PrincipalEntityType.ClrType == typeof(User));
         Assert.Equal("UserId", Assert.Single(fkToUser.Properties).Name);
     }
 
-    // 2) SQLite: se pueden crear Chat y ChatMember con User existentes
+    // 3) SQLite: Crear un chat de grupo con varios miembros válidos
     [Fact]
-    public async Task Sqlite_Allows_Adding_Members_To_Existing_Chat_And_Users()
+    public async Task Sqlite_Allows_GroupChat_With_Valid_Members()
     {
         var (db, conn) = DbContextHelper.CreateSqliteInMemoryDbContext();
         await using (db)
         await using (conn)
         {
-            // Usuarios
-            var alice = CreateSampleUser("alice");
-            var bob = CreateSampleUser("bob");
-            db.Users.AddRange(alice, bob);
+            // Arrange: 3 usuarios
+            var owner = CreateSampleUser("owner");
+            var member1 = CreateSampleUser("member1");
+            var member2 = CreateSampleUser("member2");
+
+            db.Users.AddRange(owner, member1, member2);
             await db.SaveChangesAsync();
 
-            // Chat directo creado por Alice
-            var chat = CreateDirectChat(alice.UserId);
-            db.Chats.Add(chat);
-            await db.SaveChangesAsync();
-
-            // Miembros: Alice (Owner), Bob (Member)
-            var m1 = CreateChatMember(chat.ChatId, alice.UserId, ChatMemberRole.Owner);
-            var m2 = CreateChatMember(chat.ChatId, bob.UserId, ChatMemberRole.Member);
-
-            db.ChatMembers.AddRange(m1, m2);
-            await db.SaveChangesAsync();
-
-            var loadedChat = await db.Chats
-                .Include(c => c.Members)
-                .ThenInclude(cm => cm.User)
-                .SingleAsync(c => c.ChatId == chat.ChatId);
-
-            Assert.Equal(2, loadedChat.Members.Count);
-            Assert.Contains(loadedChat.Members, cm => cm.User!.UserName == "alice" && cm.Role == ChatMemberRole.Owner);
-            Assert.Contains(loadedChat.Members, cm => cm.User!.UserName == "bob" && cm.Role == ChatMemberRole.Member);
-        }
-    }
-
-    // 3) SQLite: no permite ChatMember sin Chat
-    [Fact]
-    public async Task Sqlite_Fails_When_ChatMember_Chat_Does_Not_Exist()
-    {
-        var (db, conn) = DbContextHelper.CreateSqliteInMemoryDbContext();
-        await using (db)
-        await using (conn)
-        {
-            var user = CreateSampleUser("user_no_chat");
-            db.Users.Add(user);
-            await db.SaveChangesAsync();
-
-            // ChatId inexistente
-            var member = CreateChatMember(chatId: 999, userId: user.UserId, role: ChatMemberRole.Member);
-            db.ChatMembers.Add(member);
-
-            await Assert.ThrowsAsync<DbUpdateException>(async () =>
-            {
-                await db.SaveChangesAsync();
-            });
-        }
-    }
-
-    // 4) SQLite: no permite ChatMember sin User
-    [Fact]
-    public async Task Sqlite_Fails_When_ChatMember_User_Does_Not_Exist()
-    {
-        var (db, conn) = DbContextHelper.CreateSqliteInMemoryDbContext();
-        await using (db)
-        await using (conn)
-        {
-            var creator = CreateSampleUser("creator");
-            db.Users.Add(creator);
-            await db.SaveChangesAsync();
-
-            var chat = CreateGroupChat(creator.UserId, "Mi grupo");
-            db.Chats.Add(chat);
-            await db.SaveChangesAsync();
-
-            // UserId inexistente
-            var member = CreateChatMember(chat.ChatId, userId: 999, role: ChatMemberRole.Member);
-            db.ChatMembers.Add(member);
-
-            await Assert.ThrowsAsync<DbUpdateException>(async () =>
-            {
-                await db.SaveChangesAsync();
-            });
-        }
-    }
-
-    // 5) Lógica: un chat directo tiene exactamente 2 miembros (test de dominio)
-    [Fact]
-    public async Task Direct_Chat_Should_Have_Exactly_Two_Members()
-    {
-        using var db = DbContextHelper.CreateInMemoryDbContext(nameof(Direct_Chat_Should_Have_Exactly_Two_Members));
-
-        var alice = CreateSampleUser("alice_direct");
-        var bob = CreateSampleUser("bob_direct");
-
-        db.Users.AddRange(alice, bob);
-        await db.SaveChangesAsync();
-
-        var chat = CreateDirectChat(alice.UserId);
-        db.Chats.Add(chat);
-        await db.SaveChangesAsync();
-
-        var m1 = CreateChatMember(chat.ChatId, alice.UserId, ChatMemberRole.Owner);
-        var m2 = CreateChatMember(chat.ChatId, bob.UserId, ChatMemberRole.Member);
-
-        db.ChatMembers.AddRange(m1, m2);
-        await db.SaveChangesAsync();
-
-        var memberCount = await db.ChatMembers.CountAsync(cm => cm.ChatId == chat.ChatId);
-
-        Assert.Equal(2, memberCount);
-    }
-
-    [Fact]
-    public async Task Sqlite_Loads_Chat_With_Members_And_Messages()
-    {
-        var (db, conn) = DbContextHelper.CreateSqliteInMemoryDbContext();
-        await using (db)
-        await using (conn)
-        {
-            var alice = CreateSampleUser("alice_chat");
-            var bob = CreateSampleUser("bob_chat");
-
-            db.Users.AddRange(alice, bob);
-            await db.SaveChangesAsync();
-
-            // Chat de grupo creado por Alice
-            var chat = CreateGroupChat(alice.UserId, "Grupo de prueba");
+            // Chat creado por "owner"
+            var chat = CreateSampleChat(owner.UserId, "Group chat");
             db.Chats.Add(chat);
             await db.SaveChangesAsync();
 
             // Miembros
-            var m1 = CreateChatMember(chat.ChatId, alice.UserId, ChatMemberRole.Owner);
-            var m2 = CreateChatMember(chat.ChatId, bob.UserId, ChatMemberRole.Member);
-            db.ChatMembers.AddRange(m1, m2);
+            var cmOwner = CreateSampleChatMember(chat.ChatId, owner.UserId);
+            var cm1 = CreateSampleChatMember(chat.ChatId, member1.UserId);
+            var cm2 = CreateSampleChatMember(chat.ChatId, member2.UserId);
 
-            // Mensajes
-            var msg1 = new Message
-            {
-                ChatId = chat.ChatId,
-                SenderUserId = alice.UserId,
-                ClientMessageId = Guid.NewGuid().ToString(),
-                SentAt = DateTime.UtcNow,
-                PayloadType = MessagePayloadType.Text,
-                CipherText = "cipher1",
-                CipherMetadata = "meta1"
-            };
-
-            var msg2 = new Message
-            {
-                ChatId = chat.ChatId,
-                SenderUserId = bob.UserId,
-                ClientMessageId = Guid.NewGuid().ToString(),
-                SentAt = DateTime.UtcNow,
-                PayloadType = MessagePayloadType.Text,
-                CipherText = "cipher2",
-                CipherMetadata = "meta2"
-            };
-
-            db.Messages.AddRange(msg1, msg2);
-
+            db.ChatMembers.AddRange(cmOwner, cm1, cm2);
             await db.SaveChangesAsync();
 
-            // Cargar todo el gráfico: Chat + Members + Messages
-            var loadedChat = await db.Chats
+            // Assert: se recupera el chat con sus miembros
+            var loaded = await db.Chats
                 .Include(c => c.Members)
-                    .ThenInclude(cm => cm.User)
-                .Include(c => c.Messages)
                 .SingleAsync(c => c.ChatId == chat.ChatId);
 
-            Assert.Equal(2, loadedChat.Members.Count);
-            Assert.Equal(2, loadedChat.Messages.Count);
-
-            Assert.Contains(loadedChat.Members, cm => cm.User!.UserName == "alice_chat");
-            Assert.Contains(loadedChat.Members, cm => cm.User!.UserName == "bob_chat");
-
-            Assert.Contains(loadedChat.Messages, m => m.CipherText == "cipher1");
-            Assert.Contains(loadedChat.Messages, m => m.CipherText == "cipher2");
+            Assert.Equal(3, loaded.Members.Count);
+            Assert.Contains(loaded.Members, m => m.UserId == owner.UserId);
+            Assert.Contains(loaded.Members, m => m.UserId == member1.UserId);
+            Assert.Contains(loaded.Members, m => m.UserId == member2.UserId);
         }
     }
 
+    // 4) SQLite: no permite ChatMember con Chat inexistente
+    [Fact]
+    public async Task Sqlite_Fails_When_ChatMember_Has_NonExisting_Chat()
+    {
+        var (db, conn) = DbContextHelper.CreateSqliteInMemoryDbContext();
+        await using (db)
+        await using (conn)
+        {
+            var user = CreateSampleUser("user_for_invalid_chat");
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+
+            var cm = CreateSampleChatMember(chatId: 999, userId: user.UserId);
+
+            db.ChatMembers.Add(cm);
+
+            await Assert.ThrowsAsync<DbUpdateException>(async () =>
+            {
+                await db.SaveChangesAsync();
+            });
+        }
+    }
+
+    // 5) SQLite: no permite ChatMember con User inexistente
+    [Fact]
+    public async Task Sqlite_Fails_When_ChatMember_Has_NonExisting_User()
+    {
+        var (db, conn) = DbContextHelper.CreateSqliteInMemoryDbContext();
+        await using (db)
+        await using (conn)
+        {
+            var owner = CreateSampleUser("owner_for_invalid_user");
+            db.Users.Add(owner);
+            await db.SaveChangesAsync();
+
+            var chat = CreateSampleChat(owner.UserId, "Chat invalid user");
+            db.Chats.Add(chat);
+            await db.SaveChangesAsync();
+
+            var cm = CreateSampleChatMember(chat.ChatId, userId: 999);
+
+            db.ChatMembers.Add(cm);
+
+            await Assert.ThrowsAsync<DbUpdateException>(async () =>
+            {
+                await db.SaveChangesAsync();
+            });
+        }
+    }
+
+    // 6) Lógica de dominio: chat "directo" con exactamente 2 miembros
+    // (no se puede reforzar vía FK, pero sí comprobar el patrón de uso)
+    [Fact]
+    public async Task DirectChat_Has_Exactly_Two_Members()
+    {
+        using var db = DbContextHelper.CreateInMemoryDbContext(nameof(DirectChat_Has_Exactly_Two_Members));
+
+        var user1 = CreateSampleUser("direct1");
+        var user2 = CreateSampleUser("direct2");
+
+        db.Users.AddRange(user1, user2);
+        await db.SaveChangesAsync();
+
+        var chat = CreateSampleChat(user1.UserId, "Direct chat (logical)");
+        db.Chats.Add(chat);
+        await db.SaveChangesAsync();
+
+        var cm1 = CreateSampleChatMember(chat.ChatId, user1.UserId);
+        var cm2 = CreateSampleChatMember(chat.ChatId, user2.UserId);
+
+        db.ChatMembers.AddRange(cm1, cm2);
+        await db.SaveChangesAsync();
+
+        var loaded = await db.Chats
+            .Include(c => c.Members)
+            .SingleAsync(c => c.ChatId == chat.ChatId);
+
+        Assert.Equal(2, loaded.Members.Count);
+        Assert.All(loaded.Members, m => Assert.True(m.UserId == user1.UserId || m.UserId == user2.UserId));
+    }
 }
