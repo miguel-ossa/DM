@@ -12,6 +12,9 @@
   <ItemGroup>
     <ProjectReference Include="..\DM.Infrastructure\DM.Infrastructure.csproj" />
     <ProjectReference Include="..\DM.Domain\DM.Domain.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

@@ -33,7 +33,20 @@ public class AppDbContext : DbContext
 
       entity.Property(u => u.UserName).HasMaxLength(50);
       entity.Property(u => u.DisplayName).HasMaxLength(100);
+
+      entity.Property(u => u.PhoneNumber).HasMaxLength(32);
+      entity.Property(u => u.Email).HasMaxLength(254);
+      entity.Property(u => u.PasswordHash).HasMaxLength(255);
+
+      entity.HasIndex(u => u.PhoneNumber).IsUnique();
+      entity.HasIndex(u => u.Email).IsUnique();
+
+      entity.ToTable("users", t =>
+      {
+        t.HasCheckConstraint("CK_users_phone_or_email", "(PhoneNumber IS NOT NULL) OR (Email IS NOT NULL)");
+      });
     });
+
 
     // DEVICE
     model.Entity<Device>(entity =>

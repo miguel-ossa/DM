@@ -13,6 +13,10 @@ public class User
     public DateTime CreatedAt { get; set; }
     public bool IsActive { get; set; }
 
+    public string? PhoneNumber { get; set; }   // opcional, pero requerido si no hay Email
+    public string? Email { get; set; }         // opcional, pero requerido si no hay PhoneNumber
+    public string? PasswordHash { get; set; }  // opcional siempre
+
     // Navs
     public List<Device> Devices { get; set; } = new();
     public List<UserSession> Sessions { get; set; } = new();

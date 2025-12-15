@@ -24,11 +24,11 @@ public static class DbSeeder
         // =========================================================
         var users = new[]
         {
-            new User { UserName = "alice", DisplayName = "Alice", CreatedAt = DateTime.UtcNow, IsActive = true },
-            new User { UserName = "bob",   DisplayName = "Bob",   CreatedAt = DateTime.UtcNow, IsActive = true },
-            new User { UserName = "carol", DisplayName = "Carol", CreatedAt = DateTime.UtcNow, IsActive = true },
-            new User { UserName = "dave",  DisplayName = "Dave",  CreatedAt = DateTime.UtcNow, IsActive = true },
-            new User { UserName = "erin",  DisplayName = "Erin",  CreatedAt = DateTime.UtcNow, IsActive = true },
+            new User { UserName = "alice", DisplayName = "Alice", PhoneNumber = "555-55-55", CreatedAt = DateTime.UtcNow, IsActive = true },
+            new User { UserName = "bob",   DisplayName = "Bob",   Email = "bob@gmail.com", CreatedAt = DateTime.UtcNow, IsActive = true },
+            new User { UserName = "carol", DisplayName = "Carol", PhoneNumber = "555-53-52", CreatedAt = DateTime.UtcNow, IsActive = true },
+            new User { UserName = "dave",  DisplayName = "Dave",  PhoneNumber = "555-54-51", CreatedAt = DateTime.UtcNow, IsActive = true },
+            new User { UserName = "erin",  DisplayName = "Erin",  Email = "erin@yahoo.com", CreatedAt = DateTime.UtcNow, IsActive = true },
         };
 
         db.Users.AddRange(users);
