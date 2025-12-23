@@ -1,4 +1,5 @@
 using DM.Domain.Entities;
+using DM.Infrastructure.EventBus;
 using Microsoft.EntityFrameworkCore;
 
 namespace DM.Infrastructure.Data;
@@ -15,6 +16,8 @@ public class AppDbContext : DbContext
   public DbSet<IdentityKey> IdentityKeys => Set<IdentityKey>();
   public DbSet<DeviceKey> DeviceKeys => Set<DeviceKey>();
   public DbSet<SessionKey> SessionKeys => Set<SessionKey>();
+  public DbSet<EventBusEvent> EventBusEvents => Set<EventBusEvent>();
+
 
   public AppDbContext(DbContextOptions<AppDbContext> options)
       : base(options)
@@ -199,6 +202,42 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(sk => sk.RemoteDeviceId)
             .OnDelete(DeleteBehavior.Restrict);
+    });
+
+    model.Entity<EventBusEvent>(entity =>
+    {
+      entity.ToTable("event_bus_events");
+
+      entity.HasKey(e => e.Id);
+
+      entity.Property(e => e.Id)
+      .ValueGeneratedOnAdd();
+
+      entity.Property(e => e.EventType)
+      .HasMaxLength(255)
+      .IsRequired();
+
+      entity.Property(e => e.Payload)
+      .HasColumnType("json")
+      .IsRequired();
+
+      entity.Property(e => e.CreatedAt)
+      .HasColumnType("datetime(6)")
+      .HasDefaultValueSql("NOW(6)")
+      .IsRequired();
+
+      entity.Property(e => e.ProcessedAt)
+      .HasColumnType("datetime(6)");
+
+      entity.Property(e => e.RetryCount)
+      .HasDefaultValue(0);
+
+      entity.Property(e => e.CorrelationId)
+      .HasMaxLength(36);
+
+      entity.HasIndex(e => new { e.EventType, e.Id })
+      .IsUnique()
+      .HasDatabaseName("uq_event_type_id");
     });
 
     base.OnModelCreating(model);
